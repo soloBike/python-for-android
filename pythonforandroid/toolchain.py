@@ -527,13 +527,9 @@ build_dist
     def apk(self, args):
         '''Create an APK using the given distribution.'''
 
-        # AND: Need to add a parser here for any extra options
-        # parser = argparse.ArgumentParser(
-        #     description='Build an APK')
-        # args = parser.parse_args(args)
-
         ctx = self.ctx
         dist = self._dist
+        mode = "debug"
 
         # Manually fixing these arguments at the string stage is
         # unsatisfactory and should probably be changed somehow, but
@@ -541,12 +537,15 @@ build_dist
         # they are in the current directory.
         for i, arg in enumerate(args[:-1]):
             if arg in ('--dir', '--private'):
-                args[i+1] = realpath(expanduser(args[i+1]))
+                args[i + 1] = realpath(expanduser(args[i + 1]))
+        if "--release" in args:
+            mode = "release"
+            args.remove("--release")
 
         build = imp.load_source('build', join(dist.dist_dir, 'build.py'))
         with current_directory(dist.dist_dir):
             build.parse_args(args)
-            shprint(sh.ant, 'debug', _tail=20, _critical=True)
+            shprint(sh.ant, mode, _tail=20, _critical=True)
 
         # AND: This is very crude, needs improving. Also only works
         # for debug for now.

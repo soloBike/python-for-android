@@ -10,9 +10,8 @@ class LibZMQRecipe(Recipe):
     depends = ['python2']
 
     def should_build(self, arch):
-        super(LibZMQRecipe, self).should_build(arch)
         return True
-        return not exists(join(self.ctx.get_libs_dir(arch.arch), 'libzmq.so'))
+        return self.has_libs(arch, 'libzmq.so', 'libgnustl_shared.so')
 
     def build_arch(self, arch):
         super(LibZMQRecipe, self).build_arch(arch)
@@ -38,15 +37,10 @@ class LibZMQRecipe(Recipe):
                 _env=env)
             shprint(sh.make, _env=env)
             shprint(sh.make, 'install', _env=env)
-            shutil.copyfile('.libs/libzmq.so', join(
-                self.ctx.get_libs_dir(arch.arch), 'libzmq.so'))
 
-            bootstrap_obj_dir = join(self.ctx.bootstrap.build_dir, 'obj', 'local', arch.arch)
-            ensure_dir(bootstrap_obj_dir)
-            shutil.copyfile(
-                '{}/sources/cxx-stl/gnu-libstdc++/4.8/libs/{}/libgnustl_shared.so'.format(
-                    self.ctx.ndk_dir, arch),
-                join(bootstrap_obj_dir, 'libgnustl_shared.so'))
+            gnustl_shared = '{}/sources/cxx-stl/gnu-libstdc++/4.8/libs/{}/libgnustl_shared.so'.format(
+                self.ctx.ndk_dir, arch)
+            self.install_libs(arch, 'install/lib/libzmq.so', gnustl_shared)
 
     def get_recipe_env(self, arch):
         # XXX should stl be configuration for the toolchain itself?

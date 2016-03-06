@@ -618,6 +618,7 @@ def biglink(ctx, arch):
     obj_dir = join(ctx.bootstrap.build_dir, 'collated_objects')
     ensure_dir(obj_dir)
     recipes = [Recipe.get_recipe(name, ctx) for name in ctx.recipe_build_order]
+    collected_obj_dir = []
     for recipe in recipes:
         recipe_obj_dir = join(recipe.get_build_container_dir(arch.arch),
                               'objects_{}'.format(recipe.name))
@@ -631,14 +632,17 @@ def biglink(ctx, arch):
                  .format(recipe.name))
             continue
         info('{} recipe has object files, copying'.format(recipe.name))
-        files.append(obj_dir)
+        obj_recipe_dir = join(obj_dir, recipe.name)
+        ensure_dir(obj_recipe_dir)
+        files.append(obj_recipe_dir)
+        collected_obj_dir.append(obj_recipe_dir)
         shprint(sh.cp, '-r', *files)
 
     env = arch.get_env()
     env['LDFLAGS'] = env['LDFLAGS'] + ' -L{}'.format(
         join(ctx.bootstrap.build_dir, 'obj', 'local', arch.arch))
 
-    if not len(glob.glob(join(obj_dir, '*'))):
+    if not collected_obj_dir:
         info('There seem to be no libraries to biglink, skipping.')
         return
     info('Biglinking')
@@ -647,7 +651,7 @@ def biglink(ctx, arch):
     do_biglink = copylibs_function if ctx.copy_libs else biglink_function
     do_biglink(
         join(ctx.get_libs_dir(arch.arch), 'libpymodules.so'),
-        obj_dir.split(' '),
+        collected_obj_dir,
         extra_link_dirs=[join(ctx.bootstrap.build_dir,
                               'obj', 'local', arch.arch)],
         env=env)

@@ -80,6 +80,7 @@ public class SDLActivity extends Activity {
     // Load the .so
     public void loadLibraries() {
        for (String lib : getLibraries()) {
+          Log.v("SDL", "Load library:" + lib);
           System.loadLibrary(lib);
        }
     }
@@ -117,6 +118,7 @@ public class SDLActivity extends Activity {
         Log.v("SDL", "Device: " + android.os.Build.DEVICE);
         Log.v("SDL", "Model: " + android.os.Build.MODEL);
         Log.v("SDL", "onCreate():" + mSingleton);
+        Log.v("SDL", "Will try to load libraries");
         super.onCreate(savedInstanceState);
 
         SDLActivity.initialize();
@@ -126,12 +128,15 @@ public class SDLActivity extends Activity {
         // Load shared libraries
         String errorMsgBrokenLib = "";
         try {
+            Log.v("SDL", "Going to load libraries");
             loadLibraries();
         } catch(UnsatisfiedLinkError e) {
+            Log.v("SDL", "UnsatisfiedLinkError");
             System.err.println(e.getMessage());
             mBrokenLibraries = true;
             errorMsgBrokenLib = e.getMessage();
         } catch(Exception e) {
+            Log.v("SDL", "Exception");
             System.err.println(e.getMessage());
             mBrokenLibraries = true;
             errorMsgBrokenLib = e.getMessage();

@@ -11,7 +11,7 @@ class PyjniusRecipe(CythonRecipe):
     name = 'pyjnius'
     depends = [('python2', 'python3crystax'), ('sdl2', 'sdl'), 'six']
     site_packages_name = 'jnius'
-
+    cython_can_rename = False
     patches = [('sdl2_jnienv_getter.patch', will_build('sdl2')),
                'getenv.patch']
 

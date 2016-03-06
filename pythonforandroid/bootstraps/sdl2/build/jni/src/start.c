@@ -170,6 +170,8 @@ int main(int argc, char *argv[]) {
     PyRun_SimpleString(add_site_packages_dir);
     /* "sys.path.append(join(dirname(realpath(__file__)), 'site-packages'))") */
     PyRun_SimpleString("sys.path = ['.'] + sys.path");
+  } else {
+    load_custom_builtin_importer();
   }
 
   PyRun_SimpleString(
@@ -270,6 +272,40 @@ int main(int argc, char *argv[]) {
 
   LOG("Python for android ended.");
   return ret;
+}
+
+void load_custom_builtin_importer() {
+    LOG("Initialize custom builtin importer");
+    static const char *custom_builtin_importer = \
+        "import sys, imp\n" \
+        "from os import environ\n" \
+        "from os.path import exists, join\n" \
+        "# Custom builtin importer for precompiled modules\n" \
+        "class CustomBuiltinImporter(object):\n" \
+        "    def find_module(self, fullname, mpath=None):\n" \
+        "        if '.' not in fullname:\n" \
+        "            return\n" \
+        "        if not mpath:\n" \
+        "            return\n" \
+        "        part = fullname.rsplit('.')[-1]\n" \
+        "        fn = join(mpath[0], '{}.so'.format(part))\n" \
+        "        if exists(fn):\n" \
+        "            return self\n" \
+        "        return\n" \
+        "    def load_module(self, fullname):\n" \
+        "        f = fullname.replace('.', '_')\n" \
+        "        mod = sys.modules.get(f)\n" \
+        "        if mod is None:\n" \
+        "            # print 'LOAD DYNAMIC', f, sys.modules.keys()\n" \
+        "            try:\n" \
+        "                mod = imp.load_dynamic(f, f)\n" \
+        "            except ImportError:\n" \
+        "                # print 'LOAD DYNAMIC FALLBACK', fullname\n" \
+        "                mod = imp.load_dynamic(fullname, fullname)\n" \
+        "            return mod\n" \
+        "        return mod\n" \
+        "sys.meta_path.append(CustomBuiltinImporter())";
+    PyRun_SimpleString(custom_builtin_importer);
 }
 
 JNIEXPORT void JNICALL Java_org_kivy_android_PythonService_nativeStart(

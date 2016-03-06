@@ -892,11 +892,47 @@ class CompiledComponentsPythonRecipe(PythonRecipe):
         shprint(hostpython, 'setup.py', self.build_cmd, '-v', _env=env,
                 *self.setup_extra_args)
 
+    def get_recipe_env(self, arch, with_flags_in_cc=True):
+        env = super(CompiledComponentsPythonRecipe, self).get_recipe_env(arch, with_flags_in_cc)
+        env['LDFLAGS'] = env['LDFLAGS'] + ' -L{} '.format(
+            self.ctx.get_libs_dir(arch.arch) +
+            ' -L{} '.format(self.ctx.libs_dir) +
+            ' -L{}'.format(join(self.ctx.bootstrap.build_dir, 'obj', 'local',
+                                arch.arch)))
+        if self.ctx.python_recipe.from_crystax:
+            env['LDFLAGS'] = (env['LDFLAGS'] +
+                              ' -L{}'.format(join(self.ctx.bootstrap.build_dir, 'libs', arch.arch)))
+            # ' -L/home/asandy/.local/share/python-for-android/build/bootstrap_builds/sdl2/libs/armeabi '
+        if self.ctx.python_recipe.from_crystax:
+            env['LDSHARED'] = env['CC'] + ' -shared'
+        else:
+            env['LDSHARED'] = join(self.ctx.root_dir, 'tools', 'liblink.sh')
+        # shprint(sh.whereis, env['LDSHARED'], _env=env)
+        env['LIBLINK'] = 'NOTNONE'
+        env['NDKPLATFORM'] = self.ctx.ndk_platform
+        if self.ctx.copy_libs:
+            env['COPYLIBS'] = '1'
+
+        # Every recipe uses its own liblink path, object files are
+        # collected and biglinked later
+        liblink_path = join(self.get_build_container_dir(arch.arch),
+                            'objects_{}'.format(self.name))
+        env['LIBLINK_PATH'] = liblink_path
+        ensure_dir(liblink_path)
+
+        if self.ctx.python_recipe.from_crystax:
+            env['CFLAGS'] = '-I{} '.format(
+                join(self.ctx.ndk_dir, 'sources', 'python',
+                     self.ctx.python_recipe.version, 'include',
+                     'python')) + env['CFLAGS']
+
+        return env
 
 class CythonRecipe(PythonRecipe):
     pre_build_ext = False
     cythonize = True
     cython_args = []
+    cython_can_rename = True
 
     def __init__(self, *args, **kwargs):
         super(CythonRecipe, self).__init__(*args, **kwargs)
@@ -970,7 +1006,10 @@ class CythonRecipe(PythonRecipe):
             cyenv['PYTHONPATH'] = cyenv['CYTHONPATH']
         elif 'PYTHONPATH' in cyenv:
             del cyenv['PYTHONPATH']
-        cython = 'cython' if self.ctx.python_recipe.from_crystax else self.ctx.cython
+        if self.cython_can_rename:
+            cython = join(self.ctx.root_dir, 'tools', 'cythonize.py')
+        else:
+            cython = 'cython' if self.ctx.python_recipe.from_crystax else self.ctx.cython
         cython_command = sh.Command(cython)
         shprint(cython_command, filename, *self.cython_args, _env=cyenv)
 

@@ -37,6 +37,7 @@ import org.kivy.android.PythonUtil;
 
 import org.renpy.android.ResourceManager;
 import org.renpy.android.AssetExtract;
+import java.lang.System;
 
 
 public class PythonActivity extends SDLActivity {
@@ -47,6 +48,18 @@ public class PythonActivity extends SDLActivity {
     private ResourceManager resourceManager = null;
     private Bundle mMetaData = null;
     private PowerManager.WakeLock mWakeLock = null;
+
+    @Override
+    protected String[] getLibraries() {
+        return new String[] {
+            "SDL2",
+            "python2.7",
+            // "SDL2_mixer",
+            // "SDL2_net",
+            // "SDL2_ttf",
+            "main"
+        };
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +85,7 @@ public class PythonActivity extends SDLActivity {
         SDLActivity.nativeSetEnv("ANDROID_ENTRYPOINT", "main.pyo");
         SDLActivity.nativeSetEnv("PYTHONHOME", mFilesDirectory);
         SDLActivity.nativeSetEnv("PYTHONPATH", mFilesDirectory + ":" + mFilesDirectory + "/lib");
+        SDLActivity.nativeSetEnv("LD_LIBRARY_PATH", ":" + System.getenv("LD_LIBRARY_PATH"));
 
         try {
             Log.v(TAG, "Access to our meta-data...");

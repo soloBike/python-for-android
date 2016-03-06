@@ -9,7 +9,7 @@ index 44b32f4..378e199 100644
 -    struct lconv *locale_data = localeconv();
 -    const char *decimal_point = locale_data->decimal_point;
 +    const char *decimal_point = ".";
- 
+
      if (decimal_point[0] != '.' || decimal_point[1] != 0) {
          size_t decimal_point_len = strlen(decimal_point);
 @@ -448,8 +447,7 @@ NumPyOS_ascii_strtod_plain(const char *s, char** endptr)
@@ -20,20 +20,23 @@ index 44b32f4..378e199 100644
 -    const char *decimal_point = locale_data->decimal_point;
 +    const char *decimal_point = ".";
      size_t decimal_point_len = strlen(decimal_point);
- 
+
      char buffer[FLOAT_FORMATBUFLEN+1];
 diff --git a/numpy/core/src/private/npy_config.h b/numpy/core/src/private/npy_config.h
 index f768c90..4e5d168 100644
 --- a/numpy/core/src/private/npy_config.h
 +++ b/numpy/core/src/private/npy_config.h
-@@ -41,4 +41,10 @@
+@@ -41,4 +41,13 @@
  #undef HAVE_ATAN2
  #endif
- 
+
 +/* Android only */
 +#ifdef ANDROID
 +#undef HAVE_LDEXPL
 +#undef HAVE_FREXPL
++#undef HAVE_LOG2L
++#undef HAVE_LOG2F
++#undef HAVE_LOG2
 +#endif
 +
  #endif
