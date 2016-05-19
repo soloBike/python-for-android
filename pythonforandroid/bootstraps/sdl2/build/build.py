@@ -218,6 +218,14 @@ def make_package(args):
     #     print('Your PATH must include android tools.')
     #     sys.exit(-1)
 
+    if not (exists(join(realpath(args.private), 'main.py')) or
+            exists(join(realpath(args.private), 'main.pyo'))):
+        print('''BUILD FAILURE: No main.py(o) found in your app directory. This
+file must exist to act as the entry point for you app. If your app is
+started by a file with a different name, rename it to main.py or add a
+main.py that loads it.''')
+        exit(1)
+
     # Delete the old assets.
     if exists('assets/public.mp3'):
         os.unlink('assets/public.mp3')
@@ -286,21 +294,44 @@ def make_package(args):
         with open(args.intent_filters) as fd:
             args.intent_filters = fd.read()
 
+    if args.extra_source_dirs:
+        esd = []
+        for spec in args.extra_source_dirs:
+            if ':' in spec:
+                specdir, specincludes = spec.split(':')
+            else:
+                specdir = spec
+                specincludes = '**'
+            esd.append((realpath(specdir), specincludes))
+        args.extra_source_dirs = esd
+    else:
+        args.extra_source_dirs = []
+
     service = False
     service_main = join(realpath(args.private), 'service', 'main.py')
     if exists(service_main) or exists(service_main + 'o'):
         service = True
 
     service_names = []
-    for entrypoint in args.services:
-        name, entrypoint = entrypoint.split(":", 1)
+    for sid, spec in enumerate(args.services):
+        spec = spec.split(':')
+        name = spec[0]
+        entrypoint = spec[1]
+        options = spec[2:]
+
+        foreground = 'foreground' in options
+        sticky = 'sticky' in options
+
         service_names.append(name)
         render(
             'Service.tmpl.java',
             'src/{}/Service{}.java'.format(args.package.replace(".", "/"), name.capitalize()),
             name=name,
             entrypoint=entrypoint,
-            args=args
+            args=args,
+            foreground=foreground,
+            sticky=sticky,
+            service_id=sid + 1,
         )
 
     render(
@@ -320,6 +351,11 @@ def make_package(args):
     render(
         'strings.tmpl.xml',
         'res/values/strings.xml',
+        args=args)
+
+    render(
+        'custom_rules.tmpl.xml',
+        'custom_rules.xml',
         args=args)
 
     with open(join(dirname(__file__), 'res',
@@ -380,6 +416,8 @@ tools directory of the Android SDK.
     ap.add_argument('--wakelock', dest='wakelock', action='store_true',
                     help=('Indicate if the application needs the device '
                           'to stay on'))
+    ap.add_argument('--window', dest='window', action='store_true',
+                    help='Indicate if the application will be windowed')
     ap.add_argument('--blacklist', dest='blacklist',
                     default=join(curdir, 'blacklist.txt'),
                     help=('Use a blacklist file to match unwanted file in '
@@ -409,7 +447,10 @@ tools directory of the Android SDK.
     ap.add_argument('--with-billing', dest='billing_pubkey',
                     help='If set, the billing service will be added (not implemented)')
     ap.add_argument('--service', dest='services', action='append',
-                    help='Declare a new service entrypoint: NAME:PATH_TO_PY')
+                    help='Declare a new service entrypoint: '
+                         'NAME:PATH_TO_PY[:foreground]')
+    ap.add_argument('--add-source', dest='extra_source_dirs', action='append',
+                    help='Include additional source dirs in Java build')
 
     if args is None:
         args = sys.argv[1:]
@@ -429,6 +470,9 @@ tools directory of the Android SDK.
     if args.meta_data is None:
         args.meta_data = []
 
+    if args.services is None:
+        args.services = []
+
     if args.blacklist:
         with open(args.blacklist) as fd:
             patterns = [x.strip() for x in fd.read().splitlines()
@@ -442,6 +486,9 @@ tools directory of the Android SDK.
         WHITELIST_PATTERNS += patterns
 
     make_package(args)
+
+    return args
+
 
 if __name__ == "__main__":
 

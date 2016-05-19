@@ -8,7 +8,6 @@ import glob
 import sys
 import re
 import sh
-from appdirs import user_data_dir
 
 from pythonforandroid.util import (ensure_dir, current_directory)
 from pythonforandroid.logger import (info, warning, error, info_notify,
@@ -88,19 +87,22 @@ class Context(object):
         dir = join(self.python_installs_dir, self.bootstrap.distribution.name)
         return dir
 
-    def setup_dirs(self):
+    def setup_dirs(self, storage_dir):
         '''Calculates all the storage and build dirs, and makes sure
         the directories exist where necessary.'''
-        self.root_dir = realpath(dirname(__file__))
-
-        # AND: TODO: Allow the user to set the build_dir
-        self.storage_dir = user_data_dir('python-for-android')
+        self.storage_dir = expanduser(storage_dir)
+        if ' ' in self.storage_dir:
+            raise ValueError('storage dir path cannot contain spaces, please '
+                             'specify a path with --storage-dir')
         self.build_dir = join(self.storage_dir, 'build')
         self.dist_dir = join(self.storage_dir, 'dists')
 
+    def ensure_dirs(self):
         ensure_dir(self.storage_dir)
         ensure_dir(self.build_dir)
         ensure_dir(self.dist_dir)
+        ensure_dir(join(self.build_dir, 'bootstrap_builds'))
+        ensure_dir(join(self.build_dir, 'other_builds'))
 
     @property
     def android_api(self):
@@ -163,6 +165,8 @@ class Context(object):
 
         '''
 
+        self.ensure_dirs()
+
         if self._build_env_prepared:
             return
 
@@ -211,6 +215,13 @@ class Context(object):
             android_api = DEFAULT_ANDROID_API
         android_api = int(android_api)
         self.android_api = android_api
+
+        if self.android_api >= 21 and self.archs[0].arch == 'armeabi':
+            error('Asked to build for armeabi architecture with API '
+                  '{}, but API 21 or greater does not support armeabi'.format(
+                      self.android_api))
+            error('You probably want to build with --arch=armeabi-v7a instead')
+            exit(1)
 
         android = sh.Command(join(sdk_dir, 'tools', 'android'))
         targets = android('list').stdout.decode('utf-8').split('\n')
@@ -330,7 +341,9 @@ class Context(object):
             if cython:
                 self.cython = cython
                 break
-        self.cython = 'cython'
+        else:
+            error('No cython binary found. Exiting.')
+            exit(1)
         if not self.cython:
             ok = False
             warning("Missing requirement: cython is not installed")
@@ -425,9 +438,6 @@ class Context(object):
         self.local_recipes = None
         self.copy_libs = False
 
-        # root of the toolchain
-        self.setup_dirs()
-
         # this list should contain all Archs, it is pruned later
         self.archs = (
             ArchARM(self),
@@ -436,9 +446,7 @@ class Context(object):
             ArchAarch_64(self),
             )
 
-        ensure_dir(join(self.build_dir, 'bootstrap_builds'))
-        ensure_dir(join(self.build_dir, 'other_builds'))
-        # other_builds: where everything else is built
+        self.root_dir = realpath(dirname(__file__))
 
         # remove the most obvious flags that can break the compilation
         self.env.pop("LDFLAGS", None)
@@ -556,7 +564,7 @@ def build_recipes(build_order, python_modules, ctx):
         # 4) biglink everything
         # AND: Should make this optional
         info_main('# Biglinking object files')
-        if not ctx.python_recipe.from_crystax:
+        if not ctx.python_recipe or not ctx.python_recipe.from_crystax:
             biglink(ctx, arch)
         else:
             info('NDK is crystax, skipping biglink (will this work?)')

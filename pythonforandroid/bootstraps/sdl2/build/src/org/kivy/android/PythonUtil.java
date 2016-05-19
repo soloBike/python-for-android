@@ -15,9 +15,10 @@ public class PythonUtil {
             "SDL2_image",
             "SDL2_mixer",
             "SDL2_ttf",
-			"python2.7",
-			"gnustl_shared",
-			"zmq",
+            "gnustl_shared",
+            "zmq",
+            "python2.7",
+            "python3.5m",
             "main"
         };
     }
@@ -25,23 +26,18 @@ public class PythonUtil {
 	public static void loadLibraries(File filesDir) {
 
         String filesDirPath = filesDir.getAbsolutePath();
-		Log.v(TAG, "LD_LIBRARY_PATH is " + System.getenv("LD_LIBRARY_PATH"));
+        boolean skippedPython = false;
 
 		for (String lib : getLibraries()) {
-			Log.v(TAG, "Load library:" + lib);
-            System.loadLibrary(lib);
-        }
-
-        try {
-            System.loadLibrary("python2.7");
-        } catch(UnsatisfiedLinkError e) {
-            Log.v(TAG, "Failed to load libpython2.7");
-        }
-
-        try {
-            System.loadLibrary("python3.5m");
-        } catch(UnsatisfiedLinkError e) {
-            Log.v(TAG, "Failed to load libpython3.5m");
+		    try {
+                System.loadLibrary(lib);
+            } catch(UnsatisfiedLinkError e) {
+                if (lib.startsWith("python") && !skippedPython) {
+                    skippedPython = true;
+                    continue;
+                }
+                throw e;
+            }
         }
 
         try {

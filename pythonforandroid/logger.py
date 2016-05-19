@@ -15,6 +15,11 @@ if not six.PY3:
     stdout = codecs.getwriter('utf8')(stdout)
     stderr = codecs.getwriter('utf8')(stderr)
 
+if six.PY2:
+    unistr = unicode
+else:
+    unistr = str
+
 # monkey patch to show full output
 sh.ErrorReturnCode.truncate_cap = 999999
 
@@ -56,27 +61,35 @@ error = logger.error
 
 class colorama_shim(object):
 
-    def __init__(self):
+    def __init__(self, real):
         self._dict = defaultdict(str)
+        self._real = real
+        self._enabled = False
 
     def __getattr__(self, key):
-        return self._dict[key]
+        return getattr(self._real, key) if self._enabled else self._dict[key]
 
-Null_Style = Null_Fore = colorama_shim()
+    def enable(self, enable):
+        self._enabled = enable
 
-if stdout.isatty():
-    Out_Style = Colo_Style
-    Out_Fore = Colo_Fore
-else:
-    Out_Style = Null_Style
-    Out_Fore = Null_Fore
+Out_Style = colorama_shim(Colo_Style)
+Out_Fore = colorama_shim(Colo_Fore)
+Err_Style = colorama_shim(Colo_Style)
+Err_Fore = colorama_shim(Colo_Fore)
 
-if stderr.isatty():
-    Err_Style = Colo_Style
-    Err_Fore = Colo_Fore
-else:
-    Err_Style = Null_Style
-    Err_Fore = Null_Fore
+
+def setup_color(color):
+    enable_out = (False if color == 'never' else
+                  True if color == 'always' else
+                  stdout.isatty())
+    Out_Style.enable(enable_out)
+    Out_Fore.enable(enable_out)
+
+    enable_err = (False if color == 'never' else
+                  True if color == 'always' else
+                  stderr.isatty())
+    Err_Style.enable(enable_err)
+    Err_Fore.enable(enable_err)
 
 
 def info_main(*args):
@@ -194,12 +207,12 @@ def shprint(command, *args, **kwargs):
                 else:
                     info('{} (last {} lines of {}):\n{}\t{}{}'.format(
                         name, tail_n, len(lines),
-                        forecolor, '\t\n'.join([s.decode('utf-8') for s in lines[-tail_n:]]),
+                        forecolor, '\t\n'.join([s for s in lines[-tail_n:]]),
                         Out_Fore.RESET))
-            printtail(err.stdout, 'STDOUT', Out_Fore.YELLOW, tail_n,
+            printtail(err.stdout.decode('utf-8'), 'STDOUT', Out_Fore.YELLOW, tail_n,
                       re.compile(filter_in) if filter_in else None,
                       re.compile(filter_out) if filter_out else None)
-            printtail(err.stderr, 'STDERR', Err_Fore.RED)
+            printtail(err.stderr.decode('utf-8'), 'STDERR', Err_Fore.RED)
         if is_critical:
             env = kwargs.get("env")
             if env is not None:
@@ -216,6 +229,3 @@ def shprint(command, *args, **kwargs):
             raise
 
     return output
-
-
-from pythonforandroid.util import unistr
