@@ -13,22 +13,11 @@ class PyZMQRecipe(CythonRecipe):
     version = 'master'
     url = 'https://github.com/zeromq/pyzmq/archive/{version}.zip'
     site_packages_name = 'zmq'
-    depends = ['python2', 'libzmq']
+    depends = [('python2', 'python3crystax'), 'libzmq']
     cython_args = ['-Izmq/utils',
                    '-Izmq/backend/cython',
                    '-Izmq/devices']
-
-    def get_recipe_env(self, arch=None):
-        env = super(PyZMQRecipe, self).get_recipe_env(arch)
-        # TODO: fix hardcoded path
-        # This is required to prevent issue with _io.so import.
-        # hostpython = self.get_recipe('hostpython2', self.ctx)
-        # env['PYTHONPATH'] = (
-        #     join(hostpython.get_build_dir(arch.arch), 'build',
-        #          'lib.linux-x86_64-2.7') + ':' + env.get('PYTHONPATH', '')
-        # )
-        # env["LDSHARED"] = env["CC"] + ' -shared'
-        return env
+    patches = ["fix-import.patch"]
 
     def build_cython_components(self, arch):
         libzmq_recipe = Recipe.get_recipe('libzmq', self.ctx)

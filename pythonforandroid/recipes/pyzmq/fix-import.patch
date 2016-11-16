@@ -1,0 +1,12 @@
+--- pyzmq-master/zmq/backend/cython/socket.pyx	2016-11-10 23:12:36.000000000 +0100
++++ pyzmq/zmq/backend/cython/socket.pyx	2016-11-15 10:56:07.667474380 +0100
+@@ -71,8 +71,8 @@
+
+ import zmq
+ from zmq.backend.cython import constants
+-from .constants import *
+-from .checkrc cimport _check_rc
++from zmq.backend.cython.constants import *
++from zmq.backend.cython.checkrc cimport _check_rc
+ from zmq.error import ZMQError, ZMQBindError, InterruptedSystemCall, _check_version
+ from zmq.utils.strtypes import bytes,unicode,basestring
